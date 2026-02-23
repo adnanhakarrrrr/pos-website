@@ -1,0 +1,40 @@
+<!doctype html><html><head><meta charset='utf-8'><title>Shop Website Demo</title><link rel='stylesheet' href='/styles.css'></head>
+<body>
+<header><h2>Shop Website (Customer Ordering)</h2><div class='small'>Connected to same POS database</div></header>
+<div class='container'>
+  <div class='card'>
+    <h3>Products</h3>
+    <div id='products' class='grid'></div>
+  </div>
+  <div class='card'>
+    <h3>Checkout</h3>
+    <div class='row'><input id='cname' placeholder='Customer name'><input id='cemail' placeholder='Email'></div>
+    <div class='row'><input id='cphone' placeholder='Phone'><input id='caddress' placeholder='Shipping address'></div>
+    <button onclick='placeOrder()'>Place Order</button>
+    <p id='msg'></p>
+  </div>
+  <a href='/pos'>Go to POS Owner Panel</a>
+</div>
+<script>
+let selected = {};
+async function loadProducts(){
+  const data = await fetch('/api/products').then(r=>r.json());
+  const p = document.getElementById('products');
+  p.innerHTML='';
+  data.filter(x=>x.is_active).forEach(x=>{
+    const d=document.createElement('div'); d.className='card';
+    d.innerHTML=`<b>${x.item_name}</b><div>${x.item_description||''}</div><div>Price: $${x.price1}</div><div>Stock: ${x.is_service_item?'-':x.stock_quantity}</div><input type='number' min='0' value='0' id='q${x.id}'><button onclick='add(${x.id})'>Add</button>`;
+    p.appendChild(d);
+  })
+}
+function add(id){ selected[id]=parseInt(document.getElementById('q'+id).value||0); }
+async function placeOrder(){
+  const items = Object.entries(selected).filter(([k,v])=>v>0).map(([k,v])=>({product_id:parseInt(k),quantity:v}));
+  if(!items.length){alert('Add at least one product');return;}
+  const payload={customer_name:cname.value,customer_email:cemail.value,customer_phone:cphone.value,shipping_address:caddress.value,items};
+  const res=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(r=>r.json());
+  msg.textContent='Order placed! ID: '+res.order_id+' (owner auto-notified)';
+}
+loadProducts();
+</script>
+</body></html>
