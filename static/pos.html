@@ -1,0 +1,89 @@
+<!doctype html><html><head><meta charset='utf-8'><title>POS Demo</title><link rel='stylesheet' href='/styles.css'></head>
+<body>
+<header><h2>POS System Demo (Owner)</h2></header>
+<div class='container'>
+<div class='tabs'>
+  <button onclick="show('products')">Products</button><button onclick="show('stock')">Stock</button>
+  <button onclick="show('contacts')">Customers & Suppliers</button><button onclick="show('purchase')">Purchase</button>
+  <button onclick="show('reports')">Reports</button><button onclick="show('orders')">Website Orders</button>
+</div>
+
+<section id='products' class='card'>
+<h3>Product Module</h3>
+<div class='row'><input id='psearch' placeholder='Search any field'><button onclick='loadProducts()'>Search</button></div>
+<div class='row'><select id='fcat'></select><select id='ffam'></select><select id='fbrand'></select><select id='fseason'></select><button onclick='loadProducts()'>Apply filters</button></div>
+<div class='grid'>
+  <input id='item_name' placeholder='Item Name'><input id='item_description' placeholder='Description'><input id='barcodes' placeholder='Barcodes comma separated'>
+  <select id='category_id'></select><select id='family_id'></select><select id='brand_id'></select><select id='season_id'></select>
+  <input id='cost' type='number' placeholder='Cost'><input id='price1' type='number' placeholder='Price1'><input id='price2' type='number' placeholder='Price2'>
+  <input id='stock_quantity' type='number' placeholder='Open stock'><input id='image_url' placeholder='Image URL'>
+  <label><input id='is_active' type='checkbox' checked> Active</label><label><input id='is_service_item' type='checkbox'> Service item</label>
+</div>
+<button onclick='saveProduct()'>Add product</button>
+<div class='row'><input id='meta_name' placeholder='Add category/family/brand/season name'><select id='meta_type'><option>categories</option><option>families</option><option>brands</option><option>seasons</option></select><button onclick='addMeta()'>Add</button></div>
+<table><thead><tr><th>ID</th><th>Name</th><th>Barcode</th><th>Category</th><th>Brand</th><th>Family</th><th>Season</th><th>Stock</th><th>Actions</th></tr></thead><tbody id='products_table'></tbody></table>
+</section>
+
+<section id='stock' class='card' style='display:none'>
+<h3>Stock</h3>
+<div class='row'><select id='qty_filter'><option value=''>All</option><option value='negative'>Negative</option><option value='zero'>0 Qty</option><option value='positive'>Positive</option></select><button onclick='loadStock()'>Filter</button></div>
+<div id='stock_total'></div>
+<table><thead><tr><th>ID</th><th>Item</th><th>Qty</th><th>Cost</th><th>Total Cost</th><th>Edit</th></tr></thead><tbody id='stock_table'></tbody></table>
+<h4>Stock History</h4><input id='h_product' placeholder='Product ID'><select id='h_type'><option value=''>All</option><option>sales</option><option>purchase</option><option>inventory</option></select><button onclick='loadHistory()'>Load</button>
+<table><thead><tr><th>Product</th><th>Type</th><th>Qty change</th><th>Note</th><th>Date</th></tr></thead><tbody id='history_table'></tbody></table>
+</section>
+
+<section id='contacts' class='card' style='display:none'>
+<h3>Customers & Suppliers</h3>
+<div class='row'><input id='c_name' placeholder='Customer Name'><input id='c_phone1' placeholder='Phone1'><input id='c_phone2' placeholder='Phone2'><input id='c_address' placeholder='Address'><input id='c_country' placeholder='Country'><button onclick='addCustomer()'>Add Customer</button></div>
+<div class='row'><input id='s_name' placeholder='Supplier Name'><input id='s_phone1' placeholder='Phone1'><input id='s_phone2' placeholder='Phone2'><input id='s_address' placeholder='Address'><input id='s_country' placeholder='Country'><button onclick='addSupplier()'>Add Supplier</button></div>
+<div class='row'><input id='cs_search' placeholder='Search by any field'><button onclick='loadContacts()'>Search</button></div>
+<div class='grid'><div><h4>Customers</h4><ul id='customers'></ul></div><div><h4>Suppliers</h4><ul id='suppliers'></ul></div></div>
+</section>
+
+<section id='purchase' class='card' style='display:none'>
+<h3>Purchase</h3>
+<div class='row'><input id='pur_ref' placeholder='Reference'><input id='pur_sup' placeholder='Supplier ID'><input id='pur_inv' placeholder='Invoice Number'><button onclick='addPurchase()'>Add Document</button></div>
+<p class='small'>Demo supports add/edit/delete via API endpoints.</p>
+</section>
+
+<section id='reports' class='card' style='display:none'>
+<h3>Reports</h3><button onclick='loadReports()'>Refresh Reports</button><ul id='reports_list'></ul>
+</section>
+
+<section id='orders' class='card' style='display:none'>
+<h3>Website Orders</h3><button onclick='loadOrders()'>Refresh Orders</button><ul id='orders_list'></ul>
+</section>
+</div>
+<script>
+function show(id){document.querySelectorAll('section').forEach(s=>s.style.display='none');document.getElementById(id).style.display='block'}
+async function api(path,opt={}){return fetch(path,{headers:{'Content-Type':'application/json'},...opt}).then(r=>r.json())}
+async function loadMeta(){
+  const m=await api('/api/meta');
+  [['category_id','categories'],['family_id','families'],['brand_id','brands'],['season_id','seasons'],['fcat','categories'],['ffam','families'],['fbrand','brands'],['fseason','seasons']].forEach(([id,key])=>{
+    const el=document.getElementById(id);if(!el)return;el.innerHTML='<option value="">All</option>'+m[key].map(x=>`<option value='${x.id}'>${x.name}</option>`).join('')
+  })
+}
+async function addMeta(){await api('/api/meta/'+meta_type.value,{method:'POST',body:JSON.stringify({name:meta_name.value})});meta_name.value='';loadMeta()}
+async function saveProduct(){
+  const payload={item_name:item_name.value,item_description:item_description.value,barcodes:barcodes.value,category_id:category_id.value||null,family_id:family_id.value||null,brand_id:brand_id.value||null,season_id:season_id.value||null,cost:+cost.value||0,price1:+price1.value||0,price2:+price2.value||0,stock_quantity:+stock_quantity.value||0,image_url:image_url.value,is_active:is_active.checked,is_service_item:is_service_item.checked};
+  await api('/api/products',{method:'POST',body:JSON.stringify(payload)});loadProducts();
+}
+async function loadProducts(){
+  const q=new URLSearchParams({search:psearch.value,category_id:fcat.value,family_id:ffam.value,brand_id:fbrand.value,season_id:fseason.value});
+  const rows=await api('/api/products?'+q.toString());
+  products_table.innerHTML=rows.map(r=>`<tr><td>${r.id}</td><td>${r.item_name}</td><td>${r.barcodes||''}</td><td>${r.category||''}</td><td>${r.brand||''}</td><td>${r.family||''}</td><td>${r.season||''}</td><td>${r.stock_quantity}</td><td><button class='secondary' onclick='delProduct(${r.id})'>Delete</button></td></tr>`).join('')
+}
+async function delProduct(id){await fetch('/api/products/'+id,{method:'DELETE'});loadProducts()}
+async function loadStock(){const d=await api('/api/stock?qty_filter='+qty_filter.value);stock_total.textContent='Total stock cost value: $'+d.total_cost.toFixed(2);stock_table.innerHTML=d.items.map(i=>`<tr><td>${i.id}</td><td>${i.item_name}</td><td>${i.stock_quantity}</td><td>${i.cost}</td><td>${i.total_cost}</td><td><input id='sq${i.id}' type='number' value='${i.stock_quantity}'><button onclick='editStock(${i.id})'>Save</button></td></tr>`).join('')}
+async function editStock(id){await api('/api/stock/'+id,{method:'PUT',body:JSON.stringify({stock_quantity:+document.getElementById('sq'+id).value})});loadStock();loadHistory()}
+async function loadHistory(){const d=await api('/api/stock/history?product_id='+h_product.value+'&type='+h_type.value);history_table.innerHTML=d.map(h=>`<tr><td>${h.item_name}</td><td>${h.transaction_type}</td><td>${h.quantity_change}</td><td>${h.note}</td><td>${h.created_at}</td></tr>`).join('')}
+async function addCustomer(){await api('/api/customers',{method:'POST',body:JSON.stringify({name:c_name.value,phone1:c_phone1.value,phone2:c_phone2.value,address:c_address.value,country:c_country.value,is_active:true})});loadContacts()}
+async function addSupplier(){await api('/api/suppliers',{method:'POST',body:JSON.stringify({name:s_name.value,phone1:s_phone1.value,phone2:s_phone2.value,address:s_address.value,country:s_country.value,is_active:true})});loadContacts()}
+async function loadContacts(){const s=cs_search.value;const c=await api('/api/customers?search='+encodeURIComponent(s));const sp=await api('/api/suppliers?search='+encodeURIComponent(s));customers.innerHTML=c.map(x=>`<li>${x.name} - ${x.phone1||''}</li>`).join('');suppliers.innerHTML=sp.map(x=>`<li>${x.name} - ${x.phone1||''}</li>`).join('')}
+async function addPurchase(){await api('/api/purchases',{method:'POST',body:JSON.stringify({reference:pur_ref.value,supplier_id:pur_sup.value,invoice_number:pur_inv.value})});alert('Purchase document added')}
+async function loadReports(){const r=await api('/api/reports');reports_list.innerHTML=Object.entries(r).map(([k,v])=>`<li>${k}: ${v}</li>`).join('')}
+async function loadOrders(){const d=await api('/api/orders');orders_list.innerHTML=d.map(o=>`<li>#${o.id} ${o.customer_name} - ${o.customer_email} (${o.created_at})</li>`).join('')}
+loadMeta();loadProducts();loadStock();loadHistory();loadContacts();loadReports();loadOrders();
+</script>
+</body></html>
